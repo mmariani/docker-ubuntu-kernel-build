@@ -2,6 +2,8 @@ FROM ubuntu:16.04
 
 MAINTAINER Naftuli Kay <me@naftuli.wtf>
 
+RUN sed -i 's/^# deb-src \(.*xenial.* main restricted\)$/deb-src \1/g' /etc/apt/sources.list
+
 RUN apt-get update >/dev/null
 
 ENV KERNEL_MAJOR=4.4.0
