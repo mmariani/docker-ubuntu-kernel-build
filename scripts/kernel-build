@@ -10,21 +10,21 @@ BUILD_TAG="${BUILD_TAG:-hardcore}"
 
 function get-latest-kernel-version() {
   # find the latest kernel in the given line
-  apt-cache search linux-image-${KERNEL_MAJOR}- | grep -ioP "(?<=linux-image-)${KERNEL_MAJOR}-\d+(?=-generic)" | sort -r | head -1
+  apt-cache search "linux-image-${KERNEL_MAJOR}-" | grep -ioP "(?<=linux-image-)${KERNEL_MAJOR}-\d+(?=-generic)" | sort -r | head -1
 }
 
 function install-kernel-source() {
   # source the kernel
   apt-get update >/dev/null
-  apt-get source linux-image-$(get-latest-kernel-version)-generic
+  apt-get source "linux-image-$(get-latest-kernel-version)-generic"
 }
 
 function patch-kernel() {
   (
-    cd linux-${KERNEL_MAJOR}
-    find /patches -type f -iname '*.patch' | sort -n | while read patch_file ; do
+    cd "linux-${KERNEL_MAJOR}"
+    find /patches -type f -iname '*.patch' | sort -n | while read -r patch_file ; do
       # patch files
-      patch -p1 -N < $patch_file || rc=$?
+      patch -p1 -N < "$patch_file" || rc=$?
       # if the patch returned non-zero, it could just have been skipped as already applied
       if [ $rc -gt 1 ]; then
         echo "Patch: $patch_file failed." >&2
@@ -46,16 +46,21 @@ function configure-kernel() {
 
 function update-kernel-version() {
   (
-    cd linux-${KERNEL_MAJOR}
+    cd "linux-${KERNEL_MAJOR}"
 
-    local latest_kernel=$(head -n 1 debian.master/changelog | grep -oP '(?<=\()[^)]+(?=\))')
-    local latest_kernel_tag="$(echo $latest_kernel | grep -oP "(?<=\+)${build_tag}$")"
+    local latest_kernel
+    latest_kernel=$(head -n 1 debian.master/changelog | grep -oP '(?<=\()[^)]+(?=\))')
+    local latest_kernel_tag
+    latest_kernel_tag=$(echo "$latest_kernel" | grep -oP "(?<=\+)${build_tag}$")
 
     if [ "$latest_kernel_tag" != "$build_tag" ]; then
       # tag it up
-      local line="$(head -n 1 debian.master/changelog)"
-      local before="$(echo "$line" | grep -oP '^.*\(')"
-      local after="$(echo "$line" | grep -oP '\).*$')"
+      local line
+      line="$(head -n 1 debian.master/changelog)"
+      local before
+      before="$(echo "$line" | grep -oP '^.*\(')"
+      local after
+      after="$(echo "$line" | grep -oP '\).*$')"
 
       sed -i "1 s|^.*$|${before}${latest_kernel}+${build_tag}${after}|" debian.master/changelog
     fi
@@ -66,11 +71,12 @@ function update-kernel-version() {
 
 function build-kernel() {
   (
-    cd linux-${KERNEL_MAJOR}
+    cd "linux-${KERNEL_MAJOR}"
 
     local build_clean="$BUILD_CLEAN"
     local build_type="$BUILD_TYPE"
     local build_tag="$BUILD_TAG"
+    # shellcheck disable=SC2153
     local build_cmd="$BUILD_CMD"
 
     # unset these so they don't propagate into the build
@@ -85,7 +91,7 @@ function build-kernel() {
     elif [[ "${build_type}" == "fast" ]]; then
       fakeroot debian/rules binary-headers binary-generic binary-perarch
     else
-      fakeroot debian/rules ${build_cmd}
+      fakeroot debian/rules "${build_cmd}"
     fi
   )
 }
@@ -105,7 +111,7 @@ function main() {
       ;;
   esac
 
-  if [ "$BUILD_TYPE" == "custom" -a -z "$BUILD_CMD" ]; then
+  if [ "$BUILD_TYPE" == "custom" ] && [ -z "$BUILD_CMD" ]; then
     # if build type is custom and build command is empty
     echo "Custom build types need to specify BUILD_CMD." >&2
     exit 1
@@ -125,6 +131,6 @@ function main() {
   build-kernel
 }
 
-if [[ ${BASH_SOURCE[0]} == $0 ]]; then
+if [[ ${BASH_SOURCE[0]} == "$0" ]]; then
    main
 fi
